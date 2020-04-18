@@ -1,0 +1,23 @@
+[package]
+authors = ["Alex Vlasov <alex.m.vlasov@gmail.com>"]
+description = "Cryptographic library for SNARK gadgets"
+homepage = "https://github.com/matter-labs/sapling-crypto"
+license = "MIT/Apache-2.0"
+name = "rescue_hash"
+version = "0.0.1"
+edition = "2018"
+
+[features]
+ 
+[dependencies]
+rand = "0.4"
+byteorder = "1"
+tiny-keccak = "1.4.2"
+bit-vec = "0.6"
+sha2 = "0.8.0"
+num-bigint = "0.2"
+num-integer = "0.1"
+num-traits = "0.2"
+pairing = {package = "pairing_ce", version = "0.21.*" }
+blake2-rfc_bellman_edition = "0.0.1"
+
