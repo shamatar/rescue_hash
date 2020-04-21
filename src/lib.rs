@@ -467,6 +467,10 @@ impl<'a, E: RescueEngine> StatefulRescue<'a, E> {
         match self.mode {
             RescueOpMode::AccumulatingToAbsorb(ref mut into) => {
                 let rate = self.params.rate() as usize;
+                if into.len() < rate {
+                    into.resize(rate, E::Fr::one());
+                }
+                
                 assert_eq!(into.len(), rate, "padding was necessary!");
                 // two cases
                 // either we have accumulated enough already and should to 
