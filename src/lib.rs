@@ -372,6 +372,7 @@ pub fn make_keyed_params<E: RescueEngine>(
     new_params
 }
 
+#[derive(Clone)]
 enum RescueOpMode<E: RescueEngine> {
     AccumulatingToAbsorb(Vec<E::Fr>),
     SqueezedInto(Vec<E::Fr>)
@@ -381,6 +382,16 @@ pub struct StatefulRescue<'a, E: RescueEngine> {
     params: &'a E::Params,
     internal_state: Vec<E::Fr>,
     mode: RescueOpMode<E>
+}
+
+impl<'a, E: RescueEngine> Clone for StatefulRescue<'a, E> {
+    fn clone(&self) -> Self {
+        Self {
+            params: self.params,
+            internal_state: self.internal_state.clone(),
+            mode: self.mode.clone()
+        }
+    }
 }
 
 impl<'a, E: RescueEngine> StatefulRescue<'a, E> {
@@ -396,7 +407,7 @@ impl<'a, E: RescueEngine> StatefulRescue<'a, E> {
         }
     }
 
-    fn absorb_single_value(
+    pub fn absorb_single_value(
         &mut self,
         value: E::Fr
     ) {
