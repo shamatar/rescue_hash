@@ -470,7 +470,7 @@ impl<'a, E: RescueEngine> StatefulRescue<'a, E> {
                 if into.len() < rate {
                     into.resize(rate, E::Fr::one());
                 }
-                
+
                 assert_eq!(into.len(), rate, "padding was necessary!");
                 // two cases
                 // either we have accumulated enough already and should to 
@@ -490,6 +490,20 @@ impl<'a, E: RescueEngine> StatefulRescue<'a, E> {
                 return output;
             },
             RescueOpMode::SqueezedInto(ref mut into) => {
+                if into.len() == 0 {
+                    let rate = self.params.rate() as usize;
+
+                    self.internal_state = rescue_mimc::<E>(self.params, &self.internal_state);
+
+                    let mut sponge_output = self.internal_state[0..rate].to_vec();
+                    let output = sponge_output.drain(0..1).next().unwrap();
+    
+                    let op = RescueOpMode::SqueezedInto(sponge_output);
+                    self.mode = op;
+    
+                    return output;
+                }
+                
                 assert!(into.len() > 0, "squeezed state is depleted!");
                 let output = into.drain(0..1).next().unwrap();
 
