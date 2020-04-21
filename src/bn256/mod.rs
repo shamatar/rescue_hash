@@ -1,6 +1,6 @@
 use pairing::bn256;
 use pairing::ff::{Field, PrimeField, PrimeFieldRepr};
-use super::{RescueEngine, RescueHashParams, RescueParamsInternal, PowerSBox, QuinticSBox, generate_mds_matrix};
+use super::{RescueEngine, RescueHashParams, RescueParamsInternal, PowerSBox, QuinticSBox, generate_mds_matrix, POWER_SBOX_WINDOW_SIZE};
 use super::group_hash::{GroupHasher, BlakeHasher};
 
 extern crate num_bigint;
@@ -160,9 +160,26 @@ impl Bn256RescueParams {
         let inv_alpha = biguint_to_u64_array(y);
 
         let mut alpha_inv_repr = <bn256::Fr as PrimeField>::Repr::default();
+
         for (r, limb) in alpha_inv_repr.as_mut().iter_mut().zip(inv_alpha.iter()) {
             *r = *limb;
         }
+
+        // let alpha_inv_repr = <bn256::Fr as PrimeField>::Repr::from(3u64);
+
+        let mut indexes = vec![];
+
+        let mut exp = alpha_inv_repr;
+
+        let mask = (1u64 << POWER_SBOX_WINDOW_SIZE) - 1u64;
+        while !exp.is_zero() {
+            let bits = exp.as_ref()[0] & mask;
+            indexes.push(bits as usize);
+            exp.shr(POWER_SBOX_WINDOW_SIZE as u32);
+        }
+
+        // need highest bits first
+        indexes.reverse();
 
         Self {
             c: c,
@@ -171,7 +188,7 @@ impl Bn256RescueParams {
             round_constants: round_constants,
             mds_matrix: mds_matrix,
             security_level: security_level,
-            sbox_0: PowerSBox { power: alpha_inv_repr, inv: 5u64 },
+            sbox_0: PowerSBox { power: alpha_inv_repr, precomputed_indexes: indexes, inv: 5u64 },
             sbox_1: QuinticSBox { _marker: std::marker::PhantomData },
         }
     }

@@ -25,7 +25,6 @@ pub struct CubicSBox<E: Engine> {
 }
 
 impl<E: Engine>SBox<E> for CubicSBox<E> {
-
     fn apply(&self, elements: &mut [E::Fr]) {
         for element in elements.iter_mut() {
             let mut squared = *element;
@@ -51,16 +50,51 @@ impl<E: Engine>SBox<E> for QuinticSBox<E> {
     }
 }
 
+const POWER_SBOX_WINDOW_SIZE: usize = 4;
+
 #[derive(Clone)]
 pub struct PowerSBox<E: Engine> {
     pub power: <E::Fr as PrimeField>::Repr,
+    pub precomputed_indexes: Vec<usize>,
     pub inv: u64,
 }
 
 impl<E: Engine>SBox<E> for PowerSBox<E> {
     fn apply(&self, elements: &mut [E::Fr]) {
-        for element in elements.iter_mut() {
-            *element = element.pow(&self.power);
+        if self.precomputed_indexes.len() != 0 {
+            let mut table = [E::Fr::zero(); 1 << POWER_SBOX_WINDOW_SIZE];
+            table[0] = E::Fr::one();
+
+            for element in elements.iter_mut() {
+                let mut current = *element;
+                table[1] = current;
+                
+                for i in 2..(1 << POWER_SBOX_WINDOW_SIZE) {
+                    current.mul_assign(&*element);
+                    table[i] = current;
+                }
+
+                let bound = self.precomputed_indexes.len() - 1;
+                let mut result = table[self.precomputed_indexes[0]];
+                for _ in 0..POWER_SBOX_WINDOW_SIZE {
+                    result.square();
+                }
+
+                for i in 1..bound {
+                    result.mul_assign(&table[self.precomputed_indexes[i]]);
+                    for _ in 0..POWER_SBOX_WINDOW_SIZE {
+                        result.square();
+                    }
+                }
+
+                result.mul_assign(&table[self.precomputed_indexes[bound]]);
+
+                *element = result;
+            }
+        } else {
+            for element in elements.iter_mut() {
+                *element = element.pow(&self.power);
+            }
         }
     }
 }
@@ -503,7 +537,7 @@ impl<'a, E: RescueEngine> StatefulRescue<'a, E> {
     
                     return output;
                 }
-                
+
                 assert!(into.len() > 0, "squeezed state is depleted!");
                 let output = into.drain(0..1).next().unwrap();
 
@@ -513,3 +547,61 @@ impl<'a, E: RescueEngine> StatefulRescue<'a, E> {
     }
 }
 
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn try_windowed_exp() {
+        let params = bn256::Bn256RescueParams::new_checked_2_into_1();
+        
+        use crate::pairing::ff::PrimeFieldRepr;
+
+        for window_size in 3..=8 {
+            let mut exp = params.sbox_0().power;
+            let mut windows = std::collections::HashSet::new();
+
+            let mask = (1u64 << window_size) - 1u64;
+            let mut num_multiplications = 0;
+            while !exp.is_zero() {
+                let bits = exp.as_ref()[0] & mask;
+                windows.insert(bits);
+                exp.shr(window_size as u32);
+                num_multiplications += 1;
+            }
+
+            println!("For windows size = {}: need to precompute {} values and do {} multiplications", window_size, windows.len(), num_multiplications);
+
+            if window_size == 8 {
+                let mut as_vec: Vec<_> = windows.into_iter().collect();
+                as_vec.sort();
+                println!("Need {:?} powers", as_vec);
+            }
+        }
+
+        println!("Through the inversion");
+        for window_size in 3..=8 {
+            let exp_real = params.sbox_0().power;
+            let mut exp = pairing::bn256::Fr::char();
+            exp.sub_noborrow(&exp_real);
+            let mut windows = std::collections::HashSet::new();
+
+            let mask = (1u64 << window_size) - 1u64;
+            let mut num_multiplications = 0;
+            while !exp.is_zero() {
+                let bits = exp.as_ref()[0] & mask;
+                windows.insert(bits);
+                exp.shr(window_size as u32);
+                num_multiplications += 1;
+            }
+
+            println!("For windows size = {}: need to precompute {} values and do {} multiplications", window_size, windows.len(), num_multiplications);
+
+            if window_size == 8 {
+                let mut as_vec: Vec<_> = windows.into_iter().collect();
+                as_vec.sort();
+                println!("Need {:?} powers", as_vec);
+            }
+        }
+    }
+}
