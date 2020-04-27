@@ -185,15 +185,23 @@ pub fn rescue_hash<E: RescueEngine>(
     params: &E::Params,
     input: &[E::Fr]
 ) -> Vec<E::Fr> {
-    sponge::<E>(params, input)
+    fixed_length_sponge::<E>(params, input)
 }
 
-fn sponge<E: RescueEngine>(
+fn fixed_length_sponge<E: RescueEngine>(
     params: &E::Params,
     input: &[E::Fr]
 ) -> Vec<E::Fr> {
     assert!(input.len() > 0);
+    assert!(input.len() < 256);
+    let input_len = input.len() as u64;
     let mut state = vec![E::Fr::zero(); params.state_width() as usize];
+    // specialized for input length
+    let mut repr = <E::Fr as PrimeField>::Repr::default();
+    repr.as_mut()[0] = input_len;
+    let len_fe = <E::Fr as PrimeField>::from_repr(repr).unwrap();
+    let last_state_elem_idx = state.len() - 1;
+    state[last_state_elem_idx] = len_fe;
     let rate = params.rate() as usize;
     let mut absorbtion_cycles = input.len() / rate;
     if input.len() % rate != 0 {
@@ -442,7 +450,7 @@ impl<'a, E: RescueEngine> StatefulRescue<'a, E> {
         }
     }
 
-    pub fn absorb_single_value(
+    fn absorb_single_value(
         &mut self,
         value: E::Fr
     ) {
