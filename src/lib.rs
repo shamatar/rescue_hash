@@ -450,7 +450,7 @@ impl<'a, E: RescueEngine> StatefulRescue<'a, E> {
         }
     }
 
-    fn absorb_single_value(
+    pub fn absorb_single_value(
         &mut self,
         value: E::Fr
     ) {
