@@ -21,3 +21,6 @@ num-traits = "0.2"
 pairing = {package = "pairing_ce", version = "0.21.*" }
 blake2-rfc_bellman_edition = "0.0.1"
 
+[dev-dependencies]
+addchain = "*"
+

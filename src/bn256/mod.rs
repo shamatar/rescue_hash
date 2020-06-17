@@ -23,7 +23,7 @@ pub struct Bn256RescueParams {
     mds_matrix: Vec<bn256::Fr>,
     security_level: u32,
     sbox_0: PowerSBox<bn256::Bn256>,
-    sbox_1: QuinticSBox<bn256::Bn256>,
+    sbox_1: QuinticSBox,
 }
 
 impl Bn256RescueParams {
@@ -189,7 +189,7 @@ impl Bn256RescueParams {
             mds_matrix: mds_matrix,
             security_level: security_level,
             sbox_0: PowerSBox { power: alpha_inv_repr, precomputed_indexes: indexes, inv: 5u64 },
-            sbox_1: QuinticSBox { _marker: std::marker::PhantomData },
+            sbox_1: QuinticSBox,
         }
     }
 }
@@ -203,7 +203,7 @@ impl RescueParamsInternal<bn256::Bn256> for Bn256RescueParams {
 
 impl RescueHashParams<bn256::Bn256> for Bn256RescueParams {
     type SBox0 = PowerSBox<bn256::Bn256>;
-    type SBox1 = QuinticSBox<bn256::Bn256>;
+    type SBox1 = QuinticSBox;
 
     fn capacity(&self) -> u32 {
         self.c
@@ -271,7 +271,8 @@ mod test {
         for _ in 0..1000 {
             let input: Fr = rng.gen();
             let mut input_arr: [Fr; 1] = [input];
-            params.sbox_1().apply(&mut input_arr);
+            <QuinticSBox as SBox<Bn256>>::apply(params.sbox_1(), &mut input_arr);
+            // <params.sbox_1() as SBox<E>>.apply(&mut input_arr);
             params.sbox_0().apply(&mut input_arr);
             assert_eq!(input_arr[0], input);
         }
@@ -280,7 +281,8 @@ mod test {
             let input: Fr = rng.gen();
             let mut input_arr: [Fr; 1] = [input];
             params.sbox_0().apply(&mut input_arr);
-            params.sbox_1().apply(&mut input_arr);
+            <QuinticSBox as SBox<Bn256>>::apply(params.sbox_1(), &mut input_arr);
+            // params.sbox_1().apply(&mut input_arr);
             assert_eq!(input_arr[0], input);
         }
     }

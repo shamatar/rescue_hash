@@ -10,21 +10,29 @@ use std::marker::PhantomData;
 
 use crate::rand::{Rng};
 
-mod group_hash;
-mod constants;
+pub mod group_hash;
+pub mod constants;
+pub mod generator;
 
 pub mod bn256;
+pub mod bls12_381;
 
-pub trait SBox<E: Engine>: Sized + Clone {
+pub trait SBox<E: Engine>: Sized 
+    + Clone 
+    + Send 
+    + Sync 
+    + 'static 
+{
     fn apply(&self, elements: &mut [E::Fr]);
 }
 
-#[derive(Clone)]
-pub struct CubicSBox<E: Engine> {
-    pub _marker: PhantomData<E>
+pub trait LowDegreeSBox<E: Engine>: SBox<E> + std::default::Default {
+    const DEGREE: u64;
 }
+#[derive(Clone, Default)]
+pub struct CubicSBox;
 
-impl<E: Engine>SBox<E> for CubicSBox<E> {
+impl<E: Engine> SBox<E> for CubicSBox {
     fn apply(&self, elements: &mut [E::Fr]) {
         for element in elements.iter_mut() {
             let mut squared = *element;
@@ -34,12 +42,14 @@ impl<E: Engine>SBox<E> for CubicSBox<E> {
     }
 }
 
-#[derive(Clone)]
-pub struct QuinticSBox<E: Engine> {
-    pub _marker: PhantomData<E>
+impl<E: Engine> LowDegreeSBox<E> for CubicSBox {
+    const DEGREE: u64 = 3;
 }
 
-impl<E: Engine>SBox<E> for QuinticSBox<E> {
+#[derive(Clone, Default)]
+pub struct QuinticSBox;
+
+impl<E: Engine> SBox<E> for QuinticSBox {
     fn apply(&self, elements: &mut [E::Fr]) {
         for element in elements.iter_mut() {
             let mut quad = *element;
@@ -48,6 +58,10 @@ impl<E: Engine>SBox<E> for QuinticSBox<E> {
             element.mul_assign(&quad);
         }
     }
+}
+
+impl<E: Engine> LowDegreeSBox<E> for QuinticSBox {
+    const DEGREE: u64 = 5;
 }
 
 const POWER_SBOX_WINDOW_SIZE: usize = 4;
