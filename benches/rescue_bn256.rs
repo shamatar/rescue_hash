@@ -20,3 +20,15 @@ fn bench_2_1_hash(b: &mut test::Bencher) {
         rescue_hash::<Bn256>(&params, &input)
     });
 }
+
+#[bench]
+fn bench_2_1_hash_128(b: &mut test::Bencher) {
+    use rescue_hash::group_hash::*;
+    let params = Bn256RescueParams::new_for_params::<BlakeHasher>(1, 2, 16, 126);
+    let rng = &mut thread_rng();
+    let input = (0..2).map(|_| Fr::rand(rng)).collect::<Vec<_>>();
+
+    b.iter(|| {
+        rescue_hash::<Bn256>(&params, &input)
+    });
+}
